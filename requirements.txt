@@ -1,9 +1,11 @@
 anthropic
 openai
+google-genai
 pre-commit
 datasets
 tiktoken
 libcst
 llama-index
 jsonlines
+tomli
 swebench @ git+https://github.com/princeton-nlp/SWE-bench

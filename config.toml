@@ -1,0 +1,30 @@
+# Configuration file for Agentless vanilla execution
+# This file is used by vanilla_exec.sh to run all 16 steps of Agentless
+
+# List of target instance IDs to process
+target_ids = [
+  "django__django-10914",
+  "sphinx-doc__sphinx-8282",
+  "scikit-learn__scikit-learn-15512",
+  "matplotlib__matplotlib-18869"
+]
+
+# LLM Backend Configuration
+# Options: "openai", "anthropic", "deepseek", "vertexai"
+backend = "openai"
+
+# Model name 
+# For OpenAI: "gpt-4o-2024-05-13", "gpt-4o-mini-2024-07-18"
+# For Anthropic: "claude-3-5-sonnet-20241022"
+# For DeepSeek: "deepseek-coder"
+# For Vertex AI: "gemini-2.5-pro", "gemini-1.5-pro", "gemini-1.5-flash"
+model = "gpt-4o-2024-05-13"
+
+# API Keys (can also be set via environment variables)
+# OpenAI: OPENAI_API_KEY
+# Anthropic: ANTHROPIC_API_KEY  
+# DeepSeek: DEEPSEEK_API_KEY
+# Vertex AI: GOOGLE_CLOUD_PROJECT and GOOGLE_CLOUD_LOCATION
+# openai_api_key = "sk-..."
+# anthropic_api_key = "sk-ant-..."
+# deepseek_api_key = "sk-..."

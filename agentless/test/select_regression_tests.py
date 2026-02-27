@@ -161,6 +161,14 @@ def select_tests(args):
     results = []
 
     for instance_id in tqdm(instance_ids, total=len(instance_ids), colour="MAGENTA"):
+        # Skip if target_id is specified and doesn't match
+        if args.target_id is not None and args.target_id != instance_id:
+            continue
+        
+        # Skip if instance_id not in passing_tests
+        if instance_id not in instance_test_dict:
+            continue
+        
         result = select_test(
             instance_id, args, swe_bench_data, prev_o, instance_test_dict[instance_id]
         )
@@ -175,6 +183,9 @@ def main():
         type=str,
         default="gpt-4o-2024-05-13",
         choices=[
+            "gemini-2.5-pro",
+            "gemini-1.5-pro",
+            "gemini-1.5-flash",
             "gpt-4o-2024-05-13",
             "deepseek-coder",
             "gpt-4o-mini-2024-07-18",
@@ -185,7 +196,7 @@ def main():
         "--backend",
         type=str,
         default="openai",
-        choices=["openai", "deepseek", "anthropic"],
+        choices=["openai", "deepseek", "anthropic", "vertexai"],
     )
     parser.add_argument("--output_folder", type=str, required=True)
     parser.add_argument("--target_id", type=str)

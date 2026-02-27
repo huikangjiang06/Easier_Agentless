@@ -501,10 +501,9 @@ def merge(args):
 
 
 def check_valid_args(args):
-    assert (
-        not os.path.exists(args.output_file) or args.skip_existing
-    ), "Output file already exists and not set to skip existing localizations"
-
+    # Note: Allow output file to exist for multi-instance runs
+    # If file exists and skip_existing is False, we'll append new instances
+    
     assert not (
         args.file_level and args.start_file
     ), "Cannot use both file_level and start_file"
@@ -573,6 +572,9 @@ def main():
         type=str,
         default="gpt-4o-2024-05-13",
         choices=[
+            "gemini-2.5-pro",
+            "gemini-1.5-pro",
+            "gemini-1.5-flash",
             "gpt-4o-2024-05-13",
             "deepseek-coder",
             "gpt-4o-mini-2024-07-18",
@@ -583,7 +585,7 @@ def main():
         "--backend",
         type=str,
         default="openai",
-        choices=["openai", "deepseek", "anthropic"],
+        choices=["openai", "deepseek", "anthropic", "vertexai"],
     )
     parser.add_argument(
         "--dataset",

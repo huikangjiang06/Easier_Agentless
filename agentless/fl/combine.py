@@ -21,8 +21,21 @@ def combine_file_level(args):
         for loc in model_used_locs:
             f.write(json.dumps(loc) + "\n")
 
+    # Load existing records if output file exists
+    existing_instances = set()
+    if os.path.exists(args.output_file):
+        try:
+            for line in load_jsonl(args.output_file):
+                existing_instances.add(line.get("instance_id"))
+        except Exception:
+            pass  # If file is empty or corrupted, just continue
+
     for pred in tqdm(model_used_locs, colour="MAGENTA"):
         instance_id = pred["instance_id"]
+
+        # Skip if this instance was already processed
+        if instance_id in existing_instances:
+            continue
 
         model_loc = pred["found_files"]
         retrieve_loc = [x for x in embed_used_locs if x["instance_id"] == instance_id][
@@ -67,7 +80,6 @@ def main():
     args = parser.parse_args()
 
     args.output_file = os.path.join(args.output_folder, args.output_file)
-    assert not os.path.exists(args.output_file), "Output file already exists"
 
     os.makedirs(args.output_folder, exist_ok=True)
 

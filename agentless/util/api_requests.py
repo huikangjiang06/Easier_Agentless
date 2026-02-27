@@ -1,9 +1,15 @@
+import os
 import time
 from typing import Dict, Union
 
 import anthropic
 import openai
 import tiktoken
+
+try:
+    from google import genai
+except ImportError:
+    genai = None
 
 
 def num_tokens_from_messages(message, model="gpt-3.5-turbo-0301"):
@@ -162,3 +168,128 @@ def request_anthropic_engine(
         retries += 1
 
     return ret
+
+
+def create_vertexai_config(
+    message: Union[str, list],
+    max_tokens: int,
+    temperature: float = 1,
+    batch_size: int = 1,
+    system_message: str = "You are a helpful assistant.",
+    model: str = "gemini-2.5-pro",
+    project: str = None,
+    location: str = None,
+) -> Dict:
+    """Create configuration for Vertex AI Gemini API requests."""
+    # Use environment variables if project/location not provided
+    if project is None:
+        project = os.getenv("GOOGLE_CLOUD_PROJECT", "triangulate-396717")
+    if location is None:
+        location = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
+    
+    if isinstance(message, list):
+        # Convert list of messages to content format
+        contents = []
+        for msg in message:
+            if isinstance(msg, dict):
+                if msg.get("role") == "user":
+                    contents.append(msg.get("content", ""))
+                elif msg.get("role") == "system":
+                    # System message can be prepended
+                    contents.insert(0, msg.get("content", ""))
+        final_content = "\n".join(str(c) for c in contents)
+    else:
+        final_content = message
+    
+    config = {
+        "model": model,
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+        "batch_size": batch_size,
+        "message": final_content,
+        "project": project,
+        "location": location,
+    }
+    return config
+
+
+def request_vertexai_engine(
+    config, logger, max_retries=40, timeout=500
+):
+    """Request completion from Vertex AI Gemini."""
+    if genai is None:
+        raise ImportError(
+            "google-genai is not installed. Please install it with: pip install google-genai"
+        )
+    
+    ret = None
+    retries = 0
+
+    # Initialize Vertex AI client with credentials
+    client = genai.Client(
+        vertexai=True,
+        project=config.get("project"),
+        location=config.get("location"),
+    )
+
+    while ret is None and retries < max_retries:
+        try:
+            logger.info("Creating Vertex AI API request")
+            
+            # Make the API call
+            response = client.models.generate_content(
+                model=config["model"],
+                contents=config["message"],
+            )
+            
+            # Wrap response in a simple object that mimics the expected interface
+            ret = VertexAIResponse(response)
+            
+        except Exception as e:
+            logger.error(f"Vertex AI request error: {e}", exc_info=True)
+            if retries < max_retries - 1:
+                wait_time = min(5 * (retries + 1), 60)  # Exponential backoff, max 60s
+                logger.warning(f"Retrying after {wait_time}s...")
+                time.sleep(wait_time)
+        
+        retries += 1
+
+    logger.info(f"Vertex AI response: {ret}")
+    return ret
+
+
+class VertexAIResponse:
+    """Wrapper to standardize Vertex AI response format."""
+    
+    def __init__(self, response):
+        self.response = response
+        self.text = response.text if hasattr(response, 'text') else str(response)
+        
+        # Estimate token usage (Vertex AI may not provide exact counts)
+        # We'll use a simple heuristic: ~1 token per 4 characters
+        self.usage = VertexAIUsage(
+            input_tokens=0,  # Not directly available from Vertex AI
+            output_tokens=len(self.text) // 4,
+            cache_creation_input_tokens=0,
+            cache_read_input_tokens=0,
+        )
+    
+    def to_dict(self):
+        return {
+            "text": self.text,
+            "usage": {
+                "input_tokens": self.usage.input_tokens,
+                "output_tokens": self.usage.output_tokens,
+            }
+        }
+
+
+class VertexAIUsage:
+    """Usage statistics wrapper for Vertex AI responses."""
+    
+    def __init__(self, input_tokens=0, output_tokens=0, 
+                 cache_creation_input_tokens=0, cache_read_input_tokens=0):
+        self.input_tokens = input_tokens
+        self.output_tokens = output_tokens
+        self.cache_creation_input_tokens = cache_creation_input_tokens
+        self.cache_read_input_tokens = cache_read_input_tokens

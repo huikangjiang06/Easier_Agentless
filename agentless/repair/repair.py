@@ -748,6 +748,9 @@ def main():
         type=str,
         default="gpt-4o-2024-05-13",
         choices=[
+            "gemini-2.5-pro",
+            "gemini-1.5-pro",
+            "gemini-1.5-flash",
             "gpt-4o-2024-05-13",
             "deepseek-coder",
             "gpt-4o-mini-2024-07-18",
@@ -758,7 +761,7 @@ def main():
         "--backend",
         type=str,
         default="openai",
-        choices=["openai", "deepseek", "anthropic"],
+        choices=["openai", "deepseek", "anthropic", "vertexai"],
     )
     parser.add_argument("--output_folder", type=str, required=True)
     parser.add_argument("--post_process", action="store_true")

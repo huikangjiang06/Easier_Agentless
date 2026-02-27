@@ -362,24 +362,45 @@ def normalize_tests(args):
     selected_ids = list(range(int(args.max_samples)))
 
     for i in selected_ids:
-        if os.path.exists(
-            f"{args.output_folder}/output_{i}_normalized_reproduction_test.jsonl"
-        ):
-            continue
-
-        tests = load_jsonl(
-            f"{args.output_folder}/output_{i}_processed_reproduction_test.jsonl"
-        )
-        for d in tests:
-            test = extract_first_code_block(d["raw_test_patch"])
-            normalized_test = normalize_test(test)
-            d["normalized_test"] = normalized_test
-
-        with open(
-            f"{args.output_folder}/output_{i}_normalized_reproduction_test.jsonl", "w"
-        ) as f:
+        if args.test_folder is None:
+            if os.path.exists(
+                f"{args.output_folder}/output_{i}_normalized_reproduction_test.jsonl"
+            ):  
+                continue
+            
+            tests = load_jsonl(
+                f"{args.output_folder}/output_{i}_processed_reproduction_test.jsonl"
+            )
             for d in tests:
-                f.write(json.dumps(d) + "\n")
+                test = extract_first_code_block(d["raw_test_patch"])
+                normalized_test = normalize_test(test)
+                d["normalized_test"] = normalized_test
+
+            with open(
+                f"{args.output_folder}/output_{i}_normalized_reproduction_test.jsonl", "w"
+            ) as f:
+                for d in tests:
+                    f.write(json.dumps(d) + "\n")
+
+        else:
+            if os.path.exists(
+                f"{args.test_folder}/output_{i}_normalized_reproduction_test.jsonl"
+            ):  
+                continue
+
+            tests = load_jsonl(
+                f"{args.test_folder}/output_{i}_processed_reproduction_test.jsonl"
+            )
+            for d in tests:
+                test = extract_first_code_block(d["raw_test_patch"])
+                normalized_test = normalize_test(test)
+                d["normalized_test"] = normalized_test
+
+            with open(
+                f"{args.test_folder}/output_{i}_normalized_reproduction_test.jsonl", "w"
+            ) as f:
+                for d in tests:
+                    f.write(json.dumps(d) + "\n")
 
 
 def get_sample(execution_results, instance_id, sample_id) -> tuple[str, bool]:
@@ -392,7 +413,10 @@ def test_selection(args):
 
     test_exec_results = {}
 
-    roots = [Path(folder) for folder in args.output_folder.split(",")]
+    if args.test_folder is not None:
+        roots = [Path(folder) for folder in args.test_folder.split(",")]
+    else:
+        roots = [Path(folder) for folder in args.output_folder.split(",")]
 
     intervals = [(0, int(args.max_samples / len(roots)) - 1) for _ in range(len(roots))]
 
@@ -496,6 +520,9 @@ def main():
         type=str,
         default="gpt-4o-2024-05-13",
         choices=[
+            "gemini-2.5-pro",
+            "gemini-1.5-pro",
+            "gemini-1.5-flash",
             "gpt-4o-2024-05-13",
             "deepseek-coder",
             "gpt-4o-mini-2024-07-18",
@@ -506,8 +533,9 @@ def main():
         "--backend",
         type=str,
         default="openai",
-        choices=["openai", "deepseek", "anthropic"],
+        choices=["openai", "deepseek", "anthropic", "vertexai"],
     )
+    parser.add_argument("--test_folder", type=str, required=False)
     parser.add_argument("--output_folder", type=str, required=True)
     parser.add_argument("--output_file", type=str)
     parser.add_argument("--skip_greedy", action="store_true")

@@ -5,8 +5,10 @@ from typing import List
 from agentless.util.api_requests import (
     create_anthropic_config,
     create_chatgpt_config,
+    create_vertexai_config,
     request_anthropic_engine,
     request_chatgpt_engine,
+    request_vertexai_engine,
 )
 
 
@@ -384,6 +386,56 @@ class DeepSeekChatDecoder(DecoderBase):
         return False
 
 
+class VertexAIGeminiDecoder(DecoderBase):
+    def __init__(self, name: str, logger, **kwargs) -> None:
+        super().__init__(name, logger, **kwargs)
+
+    def codegen(
+        self, message: str, num_samples: int = 1, prompt_cache: bool = False
+    ) -> List[dict]:
+        if self.temperature == 0:
+            assert num_samples == 1
+
+        trajs = []
+        for _ in range(num_samples):
+            config = create_vertexai_config(
+                message=message,
+                max_tokens=self.max_new_tokens,
+                temperature=self.temperature,
+                batch_size=1,
+                model=self.name,
+            )
+            ret = request_vertexai_engine(config, self.logger)
+
+            if ret:
+                trajs.append(
+                    {
+                        "response": ret.text,
+                        "usage": {
+                            "completion_tokens": ret.usage.output_tokens,
+                            "prompt_tokens": ret.usage.input_tokens,
+                            "cache_creation_token": 0,
+                            "cache_read_input_tokens": 0,
+                        },
+                    }
+                )
+            else:
+                trajs.append(
+                    {
+                        "response": "",
+                        "usage": {
+                            "completion_tokens": 0,
+                            "prompt_tokens": 0,
+                        },
+                    }
+                )
+
+        return trajs
+
+    def is_direct_completion(self) -> bool:
+        return False
+
+
 def make_model(
     model: str,
     backend: str,
@@ -410,6 +462,14 @@ def make_model(
         )
     elif backend == "deepseek":
         return DeepSeekChatDecoder(
+            name=model,
+            logger=logger,
+            batch_size=batch_size,
+            max_new_tokens=max_tokens,
+            temperature=temperature,
+        )
+    elif backend == "vertexai":
+        return VertexAIGeminiDecoder(
             name=model,
             logger=logger,
             batch_size=batch_size,

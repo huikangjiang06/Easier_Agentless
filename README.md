@@ -1,86 +1,122 @@
-# 😺 Agentless
+# Easier Agentless
 
-<p align="center">
-    <a href="https://arxiv.org/abs/2407.01489"><img src="https://img.shields.io/badge/📃-Arxiv-b31b1b?style=for-the-badge"></a>
-    <a href="https://github.com/OpenAutoCoder/Agentless/blob/master/LICENSE"><img src="https://forthebadge.com/images/badges/license-mit.svg" style="height: 28px"></a>
-</p>
+> Fork of [OpenAutoCoder/Agentless](https://github.com/OpenAutoCoder/Agentless) with simplified execution and multi-backend support.
 
-<p align="center">
-    <big><a href="#-news">😽News</a></big> |
-    <big><a href="#-setup">🐈Setup</a></big> |
-    <big><a href="#-comparison">🧶Comparison</a></big> | 
-    <big><a href="#-artifacts">🐈‍⬛Artifacts</a></big> |
-    <big><a href="#-citation">📝Citation</a></big> |
-    <big><a href="#-acknowledgement">😻Acknowledgement</a></big>
-</p>
+## What's New
 
-## 😽 News 
+This fork adds two major improvements to the original Agentless repository:
 
-- *Dec 2nd, 2024*: We integrated Agentless with Claude 3.5 Sonnet to achieve 40.7% and 50.8% solve rate on SWE-bench lite and verified 
-- *Oct 28th, 2024*: We just released OpenAutoCoder-Agentless 1.5! 
-- *July 1st, 2024*: We just released OpenAutoCoder-Agentless 1.0! **Agentless** currently is the best open-source approach on SWE-bench lite with 82 fixes (27.3%) and costing on average $0.34 per issue.
+### 1. **Aggregated Execution**
+The original Agentless requires running 16 separate commands with different arguments for each step. This fork provides:
+- **Single execution script** (`run.sh`) that runs all steps
+- **Config-driven workflow** (`config.toml`) for setting target instances and LLM parameters
+- **Simpler workflow** - edit config once, run one command
 
-## 😺 About 
+### 2. **Multi-Backend Support**
+Added support for multiple LLM providers beyond OpenAI:
+- **OpenAI** (original): GPT-4o, GPT-4o-mini
+- **Anthropic**: Claude 3.5 Sonnet
+- **DeepSeek**: DeepSeek Coder
+- **Vertex AI**: Gemini 2.5 Pro, Gemini 1.5 Pro
 
-**Agentless** is an *agentless* approach to automatically solve software development problems. To solve each issue, **Agentless** follows a simple three phase process: localization, repair, and patch validation.
-- 🙀 **Localization**: Agentless employs a hierarchical process to first localize the fault to specific files, then to relevant classes or functions, and finally to fine-grained edit locations
-- 😼 **Repair**: Agentless takes the edit locations and samples multiple candidate patches per bug in a simple diff format
-- 😸 **Patch Validation**: Agentless selects the regression tests to run and generates additional reproduction test to reproduce the original error. Using the test results, Agentless re-ranks all remaining patches to selects one to submit
+## Quick Start
 
-## 🐈 Setup
-
-First create the environment 
-
-```shell
-git clone https://github.com/OpenAutoCoder/Agentless.git
-cd Agentless
-
+```bash
+# Setup
 conda create -n agentless python=3.11 
 conda activate agentless
 pip install -r requirements.txt
 export PYTHONPATH=$PYTHONPATH:$(pwd)
+
+# Configure targets and backend
+cat > config.toml << EOF
+target_ids = ["django__django-10914"]
+backend = "openai"
+model = "gpt-4o-2024-05-13"
+EOF
+
+# Set API key
+export OPENAI_API_KEY="sk-..."
+
+# Run all 16 steps
+./run.sh
 ```
 
-<details><summary>⏬ Developer Setup</summary>
-<div>
+Results are saved to `results/swe-bench-lite/`.
 
-```shell
-# for contribution, please install the pre-commit hook.
-pre-commit install  # this allows a more standardized code style
+## Configuration
+
+Edit `config.toml` to customize your run:
+
+```toml
+# Instance IDs to process
+target_ids = [
+  "django__django-10914",
+  "sphinx-doc__sphinx-8282"
+]
+
+# LLM backend: "openai", "anthropic", "deepseek", or "vertexai"
+backend = "openai"
+
+# Model name (must match backend)
+model = "gpt-4o-2024-05-13"
+
+# Optional: API key (or use environment variable)
+# openai_api_key = "sk-..."
 ```
 
-</div>
-</details>
+### Backend Configuration
 
-Then export your OpenAI API key 
-```shell
-export OPENAI_API_KEY={key_here}
+| Backend | Environment Variable | Example Model |
+|---------|---------------------|---------------|
+| OpenAI | `OPENAI_API_KEY` | gpt-4o-2024-05-13 |
+| Anthropic | `ANTHROPIC_API_KEY` | claude-3-5-sonnet-20241022 |
+| DeepSeek | `DEEPSEEK_API_KEY` | deepseek-coder |
+| Vertex AI | `GOOGLE_CLOUD_PROJECT`<br>`GOOGLE_CLOUD_LOCATION` | gemini-2.5-pro |
+
+**Vertex AI setup:**
+```bash
+gcloud auth application-default login
+export GOOGLE_CLOUD_PROJECT="your-project"
+export GOOGLE_CLOUD_LOCATION="us-central1"
 ```
 
-Now you are ready to run **Agentless** on the problems in SWE-bench! 
+## Why This Fork?
 
-> [!NOTE]
-> 
-> To reproduce the full SWE-bench lite experiments and follow our exact setup as described in the paper. Please see this [README](https://github.com/OpenAutoCoder/Agentless/blob/main/README_swebench.md)
+**Problem:** The original workflow requires:
+- Running 16 different commands manually
+- Remembering complex argument patterns for each step
+- Manually managing intermediate results between steps
+- OpenAI-only support
 
-## 🧶 Comparison
+**Solution:** This fork provides:
+- Single command execution with `run.sh`
+- All configuration in one place (`config.toml`)
+- Automatic chaining of all pipeline steps
+- Support for 4 LLM providers (OpenAI, Anthropic, DeepSeek, Vertex AI)
 
-Below shows the comparison graph between **Agentless** and the best open-source agent-based approaches on SWE-bench lite
+## Changes Summary
 
-<p align="center">
-<img src="./resources/comparison_graph.png" style="width:75%; margin-left: auto; margin-right: auto;">
-</p>
+### Modified Files
+- `agentless/util/api_requests.py` - Added Vertex AI API integration
+- `agentless/util/model.py` - Added VertexAIGeminiDecoder class
+- `agentless/fl/localize.py` - Added backend/model arguments, vertexai support
+- `agentless/fl/combine.py` - Added incremental processing (skip existing)
+- `agentless/repair/repair.py` - Added backend/model arguments
+- `agentless/test/*.py` - Added backend/model arguments
+- `requirements.txt` - Added google-genai, tomli
 
-## 🐈‍⬛ Artifacts
+### New Files
+- `run.sh` - Aggregated execution script
+- `config.toml` - Configuration file (example)
 
-You can download the complete artifacts of **Agentless** in our [v1.5.0 release](https://github.com/OpenAutoCoder/Agentless/releases/tag/v1.5.0):
-- 🐈‍⬛ agentless_swebench_lite: complete Agentless run on SWE-bench Lite
-- 🐈‍⬛ agentless_swebench_verified: complete Agentless run on SWE-bench Verified
-- 🐈‍⬛ swebench_repo_structure: preprocessed structure information for each SWE-Bench problem
+## Original Documentation
 
-You can also checkout `classification/` folder to obtain our manual classifications of SWE-bench-lite as well as our filtered SWE-bench-lite-*S* problems.
+For detailed information about the Agentless approach, benchmark results, and step-by-step manual execution:
+- [Original Agentless README](https://github.com/OpenAutoCoder/Agentless)
+- [SWE-bench Step-by-Step Guide](README_swebench.md) (manual execution)
 
-## 📝 Citation
+## Citation
 
 ```bibtex
 @article{agentless,
@@ -90,13 +126,3 @@ You can also checkout `classification/` folder to obtain our manual classificati
   journal   = {arXiv preprint},
 }
 ```
-
-> [!NOTE]
-> 
-> The first two authors contributed equally to this work, with author order determined via [*Nigiri*](https://senseis.xmp.net/?Nigiri)
-
-## 😻 Acknowledgement 
-
-* [SWE-bench](https://www.swebench.com/)
-* [Aider](https://github.com/paul-gauthier/aider)
-* [SWE-bench-docker](https://github.com/aorwall/SWE-bench-docker)
